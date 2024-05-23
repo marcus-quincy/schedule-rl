@@ -2,4 +2,4 @@ Requirements
 - python 3
 - pytorch
 - matplotlib
-- gymnasium (optional)
+- gymnasium
