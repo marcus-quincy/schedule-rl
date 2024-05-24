@@ -10,6 +10,7 @@
 import gymnasium as gym
 from gymnasium import spaces
 #import pygame
+from datetime import datetime
 
 class SchedulingEnv(gym.Env):
     metadata = {"render_modes": [], "render_fps": 4}
@@ -21,7 +22,10 @@ class SchedulingEnv(gym.Env):
         # XXX: next 3 maybe not necessary becaues of reset()
         self._index = 0 # index in times array
         self._round = 0 # current round we're scheduling (out of 10)
-        self._schedule = tuple(map(lambda time: (time, ""), times))
+        self._schedule = list(map(lambda time: [time, ["", ""]], times))
+
+
+        score = self._score_schedule()
 
         # 4 possible actions:
         # - don't schedule a game at the current time
@@ -33,9 +37,10 @@ class SchedulingEnv(gym.Env):
 
         # XXX what should this be?
         #self.observations_space = spaces.Tuple(tuple(map(lambda time: spaces.Tuple((spaces.Text, spaces.Text)), times)))
-        self.observations_space = spaces.Tuple(tuple(map(lambda time: spaces.Tuple((spaces.Text(16), spaces.Text(128))), times)))
+        self.observations_space = spaces.Tuple(tuple(map(lambda time: spaces.Tuple((spaces.Text(16), spaces.Tuple((spaces.Text(16), spaces.Text(16))))), times)))
 
     def _get_obs(self):
+        # FIXME map to tuple
         return self._schedule
 
     def _get_info(self):
@@ -45,7 +50,7 @@ class SchedulingEnv(gym.Env):
         super().reset(seed=seed)
         self._index = 0 # index in times array
         self._round = 0 # current round we're scheduling (out of 10)
-        self._schedule = tuple(map(lambda time: (time, ""), times))
+        self._schedule = list(map(lambda time: [time, ["", ""]], times))
         return self._get_obs(), self._get_info()
 
     def step(self, action):
@@ -53,7 +58,30 @@ class SchedulingEnv(gym.Env):
 
     def _score_schedule(self):
         """scores the schedule, for now just tries to make it spread out"""
-        pass
+        score = 0
+        team_games = {}
+
+        for team in self._teams:
+            team_games[team] = []
+
+        for game in self._schedule:
+            if game[1][0] != '':
+                team_games[game[1][0]].append(game[0])
+            if game[1][1] != '':
+                team_games[game[1][1]].append(game[0])
+
+        for team in team_games:
+            last_time = None
+            for time_string in team_games[team]:
+                if time_string != "":
+                    time = self._parse_time(time_string)
+                    if last_time is not None:
+                        diff = time - last_time
+                        seconds = diff.total_seconds()
+                        score += (seconds / (3600 * 24)) ** 2
+                    last_time = time
+
+        return score
 
     def _get_round_robin(self, _round):
         # https://en.wikipedia.org/wiki/Round-robin_tournament#Scheduling_algorithm
@@ -71,3 +99,6 @@ class SchedulingEnv(gym.Env):
             pairs.append((rotated[i], rotated[-(i + 1)]))
 
         return pairs
+
+    def _parse_time(self, time):
+        return datetime.strptime(time, '%m/%d/%y %H:%M')
