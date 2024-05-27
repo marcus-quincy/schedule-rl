@@ -11,9 +11,15 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+
+
+from scheduling import *
+import data
+
 # XXX: i think everywhere there is env, is a location where it should be changed to specific task
 
-env = gym.make("CartPole-v1")
+#env = gym.make("CartPole-v1")
+env = SchedulingEnv(data.times(), data.teams())
 
 # set up matplotlib
 is_ipython = 'inline' in matplotlib.get_backend()
@@ -189,13 +195,13 @@ def optimize_model():
 if torch.cuda.is_available():
     num_episodes = 600
 else:
-    num_episodes = 200
-    #num_episodes = 50
+    #num_episodes = 200
+    num_episodes = 50
 
 for i_episode in range(num_episodes):
     # Initialize the environment and get its state
     state, info = env.reset()
-    state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+    state = torch.tensor(state, dtype=torch.float, device=device).unsqueeze(0)
     for t in count():
         action = select_action(state)
         observation, reward, terminated, truncated, _ = env.step(action.item())
@@ -205,7 +211,7 @@ for i_episode in range(num_episodes):
         if terminated:
             next_state = None
         else:
-            next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
+            next_state = torch.tensor(observation, dtype=torch.float, device=device).unsqueeze(0)
 
         # Store the transition in memory
         memory.push(state, action, next_state, reward)
@@ -225,11 +231,13 @@ for i_episode in range(num_episodes):
         target_net.load_state_dict(target_net_state_dict)
 
         if done:
+            #env.print_schedule()
             episode_durations.append(t + 1)
             plot_durations()
             break
 
 print('Complete')
+env.print_schedule()
 plot_durations(show_result=True)
 plt.ioff()
 plt.show()
