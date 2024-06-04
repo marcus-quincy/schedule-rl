@@ -12,6 +12,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 
+import numpy as np
+
 
 from scheduling import *
 import data
@@ -98,12 +100,28 @@ steps_done = 0
 
 
 def select_action(state):
+    # very first thing in state is the current iteration
+    index = state[0]
+    #print(state) #
+    #exit(42)
     global steps_done
     sample = random.random()
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
         math.exp(-1. * steps_done / EPS_DECAY)
     steps_done += 1
-    if sample > eps_threshold:
+
+    games_to_schedule = env.games_to_schedule
+    mask_array = [1] * n_actions
+    # if a game is already scheduled, then make it 0 so it's masked and can't be done
+    for i in range(len(games_to_schedule)):
+        if games_to_schedule[i] == None:
+            mask_array[i] = 0
+
+    # print("--")
+    # print(games_to_schedule)
+    # print(mask_array)
+
+    if sample > eps_threshold or True:
         with torch.no_grad():
             # t.max(1) will return the largest column value of each row.
             # second column on max result is index of where max element was
@@ -111,10 +129,22 @@ def select_action(state):
             # XXX: maybe we can just filter this to be legal moves... i.e. get the largest legal move
             # https://stats.stackexchange.com/questions/378008/how-to-handle-a-changing-action-space-in-reinforcement-learning
             # https://stats.stackexchange.com/questions/328835/enforcing-game-rules-in-alpha-go-zero
-            return policy_net(state).max(1).indices.view(1, 1)
+            #
+            # TODO: when back working on this, sort policy net in desceding order by index then iterate through and pick the first one that is valid
+            policies = []
+            zp = policy_net(state)[0]
+            for i in range(len(zp)):
+                policies.append((zp[i].item(), i))
+            _sorted = sorted(policies, reverse=True)
+            # print(_sorted)
+            for item in _sorted:
+                # print(f"index {item[1]} val {mask_array[item[1]]}")
+                if mask_array[item[1]] != 0:
+                    return torch.tensor([[item[1]]], device=device, dtype=torch.long)
+            print("no valid action available")
+            exit(6)
     else:
-        # XXX: here do the same thing... get a random valid move
-        return torch.tensor([[env.action_space.sample()]], device=device, dtype=torch.long)
+        return torch.tensor([[env.action_space.sample(np.array(mask_array, dtype=np.int8))]], device=device, dtype=torch.long)
 
 
 episode_durations = []

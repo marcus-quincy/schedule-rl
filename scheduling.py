@@ -70,7 +70,7 @@ class SchedulingEnv(gym.Env):
         super().reset(seed=seed)
         self._index = 0 # index in times array
         self._round = 0 # current round we're scheduling (out of 10)
-        self._games_to_schedule = self._get_round_robin(self._round)
+        self.games_to_schedule = self._get_round_robin(self._round)
         first_time = self._parse_time(self._times[0])
         self._schedule = list(map(lambda time: [*self._get_init_times(time, first_time), 6, 6, 4], self._times)) # 6 to indicate no game
         return self._get_obs(), self._get_info()
@@ -82,18 +82,20 @@ class SchedulingEnv(gym.Env):
 
         #print(f'step with action {action}')
 
-        if action < len(self._games_to_schedule):
-            if self._games_to_schedule[action] is None:
+        if action < len(self.games_to_schedule):
+            if self.games_to_schedule[action] is None:
                 # tried to scheduled games in wrong order
                 # We should never get here
-                print("tried to schedule games in wrong order!!!")
+                print(f"tried to schedule games in wrong order!!! action: {action}")
+                print(self.games_to_schedule)
                 exit(2)
                 reward = -99999
             else:
                 # schedule a game at this time
-                self._schedule[self._index][2] = self._games_to_schedule[action][0] # set team0
-                self._schedule[self._index][3] = self._games_to_schedule[action][1] # set team1
-                self._games_to_schedule[action] = None
+                self._schedule[self._index][2] = self.games_to_schedule[action][0] # set team0
+                self._schedule[self._index][3] = self.games_to_schedule[action][1] # set team1
+                self._schedule[self._index][4] = action // 6 # set league
+                self.games_to_schedule[action] = None
                 #print(f'scheduled a game at index {self._index}')
                 self._index += 1
         else:
@@ -111,12 +113,12 @@ class SchedulingEnv(gym.Env):
 
         # handle moving on to next round
         move_on = True
-        for game in self._games_to_schedule:
+        for game in self.games_to_schedule:
             if game is not None:
                 move_on = False
         if move_on:
             self._round += 1
-            self._games_to_schedule = self._get_round_robin(self._round)
+            self.games_to_schedule = self._get_round_robin(self._round)
 
         #handle being done
         if self._index >= len(self._times) or self._round >= 10:
@@ -140,20 +142,27 @@ class SchedulingEnv(gym.Env):
         for _i in range(24):
             team_games.append([])
 
-        # print(self._schedule)
+        #print(self._schedule)
         # print(team_games)
 
         for game in self._schedule:
-            if game[2] != len(self._teams[0]):
-                team_games[game[4] * 6 + game[2]].append((game[0], game[1]))
-            if game[3] != len(self._teams[0]):
-                team_games[game[4] * 6 + game[3]].append((game[0], game[1]))
+            # print(game)
+            # print([game[4] * 6 + game[2]])
+            if game[2] != 24:
+                team_games[game[2]].append((game[0], game[1]))
+            else:
+                print("top 24")
+            if game[3] != 24:
+                team_games[game[3]].append((game[0], game[1]))
+            else:
+                print("bot 24")
 
 
         # print(team_games)
 
         # [[(4, 20), (10, 22)], ...]
         for one_teams_games in team_games:
+            # print(one_teams_games)
             if len(one_teams_games) < 10:
                 print("SHOULD NEVER GET HERE")
                 exit(5)
