@@ -16,8 +16,6 @@ import torch.nn.functional as F
 from scheduling import *
 import data
 
-# XXX: i think everywhere there is env, is a location where it should be changed to specific task
-
 #env = gym.make("CartPole-v1")
 env = SchedulingEnv(data.times(), data.teams())
 
@@ -110,8 +108,12 @@ def select_action(state):
             # t.max(1) will return the largest column value of each row.
             # second column on max result is index of where max element was
             # found, so we pick action with the larger expected reward.
+            # XXX: maybe we can just filter this to be legal moves... i.e. get the largest legal move
+            # https://stats.stackexchange.com/questions/378008/how-to-handle-a-changing-action-space-in-reinforcement-learning
+            # https://stats.stackexchange.com/questions/328835/enforcing-game-rules-in-alpha-go-zero
             return policy_net(state).max(1).indices.view(1, 1)
     else:
+        # XXX: here do the same thing... get a random valid move
         return torch.tensor([[env.action_space.sample()]], device=device, dtype=torch.long)
 
 
@@ -126,8 +128,8 @@ def plot_durations(show_result=False):
     else:
         plt.clf()
         plt.title('Training...')
-    plt.xlabel('Episode')
-    plt.ylabel('Duration')
+    plt.xlabel('Iteration')
+    plt.ylabel('Score')
     plt.plot(durations_t.numpy())
     # Take 100 episode averages and plot them too
     if len(durations_t) >= 100:
@@ -237,7 +239,8 @@ for i_episode in range(num_episodes):
             break
 
 print('Complete')
-env.print_schedule()
+# TODO: is this the result from the best model? i dont' thingk so...
+#env.print_schedule()
 plot_durations(show_result=True)
 plt.ioff()
 plt.show()

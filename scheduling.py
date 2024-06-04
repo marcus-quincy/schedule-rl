@@ -28,7 +28,7 @@ class SchedulingEnv(gym.Env):
         # - the 3 possible games that could be scheduled
         #
         # XXX maybe this should be Sequence instead for a variable size space
-        self.action_space = spaces.Discrete(4)
+        self.action_space = spaces.Discrete(12)
         #self.action_space = spaces.Sequence(spaces.Discrete(4))
 
         # XXX what should this be?
@@ -43,13 +43,13 @@ class SchedulingEnv(gym.Env):
 
         """
         (
-            #(d, h, m, team0, team1)
-            (1, 20, 15, 0, 1),
-            (2, 21, 15, 2, 3),
+            #(d, h, team0, team1, league)
+            (1, 20, 0, 1, 0),
+            (2, 21, 2, 3, 0),
         )
         """
 #        self.observations_space = spaces.Tuple(tuple([-1] * 5 * len(times)))
-        self.observations_space = spaces.MultiDiscrete([len(times)] + ([128, 24, len(teams) + 1, len(teams) + 1] * len(times)))
+        self.observations_space = spaces.MultiDiscrete([len(times)] + ([128, 24, 7, 7, 5] * len(times))) # XXX 4 is league 6 is teams so we go 1 up for "null" value
 
     def _get_obs(self):
         flat = [self._index]
@@ -64,7 +64,7 @@ class SchedulingEnv(gym.Env):
 
     def print_schedule(self):
         for time in self._schedule:
-            print(f'Day {time[0]} time {time[1]}: {time[2]} - {time[3]}')
+            print(f'Day {time[0]} time {time[1]} league {time[4]}: {time[2]} - {time[3]}')
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -72,7 +72,7 @@ class SchedulingEnv(gym.Env):
         self._round = 0 # current round we're scheduling (out of 10)
         self._games_to_schedule = self._get_round_robin(self._round)
         first_time = self._parse_time(self._times[0])
-        self._schedule = list(map(lambda time: [*self._get_init_times(time, first_time), len(self._teams), len(self._teams)], self._times))
+        self._schedule = list(map(lambda time: [*self._get_init_times(time, first_time), 6, 6, 4], self._times)) # 6 to indicate no game
         return self._get_obs(), self._get_info()
 
     def step(self, action):
@@ -80,18 +80,34 @@ class SchedulingEnv(gym.Env):
         terminated = False
         truncated = False
 
+        #print(f'step with action {action}')
+
         if action < len(self._games_to_schedule):
             if self._games_to_schedule[action] is None:
                 # tried to scheduled games in wrong order
+                # We should never get here
+                print("tried to schedule games in wrong order!!!")
+                exit(2)
                 reward = -99999
             else:
                 # schedule a game at this time
                 self._schedule[self._index][2] = self._games_to_schedule[action][0] # set team0
                 self._schedule[self._index][3] = self._games_to_schedule[action][1] # set team1
+                self._games_to_schedule[action] = None
+                #print(f'scheduled a game at index {self._index}')
                 self._index += 1
         else:
             # don't schedule a game at this time
+            # XXX: it seems like it's too likely to want to skip games...
+            # the score doesn't penalize not enough games being scheduled!!!
+            #print(f'SKIPPED a game at index {self._index}')
+            #
+            #update jun 3: this should never happenn!!!
+            print("tried to skip opportunity to schedule game!")
+            exit(3)
+            reward = -9
             self._index += 1
+
 
         # handle moving on to next round
         move_on = True
@@ -103,9 +119,11 @@ class SchedulingEnv(gym.Env):
             self._games_to_schedule = self._get_round_robin(self._round)
 
         #handle being done
-        if self._index >= len(self._times):
+        if self._index >= len(self._times) or self._round >= 10:
             terminated = True
             reward = self._score_schedule()
+            self.print_schedule()
+            print(f'schedule got score of {reward}')
 
         return self._get_obs(), reward, terminated, truncated, self._get_info()
 
@@ -118,16 +136,28 @@ class SchedulingEnv(gym.Env):
     def _score_schedule(self):
         """scores the schedule, for now just tries to make it spread out"""
         score = 0
-        team_games = [[]] * len(self._teams)
+        team_games = []
+        for _i in range(24):
+            team_games.append([])
+
+        # print(self._schedule)
+        # print(team_games)
 
         for game in self._schedule:
-            if game[2] != len(self._teams):
-                team_games[game[2]].append((game[0], game[1]))
-            if game[3] != len(self._teams):
-                team_games[game[3]].append((game[0], game[1]))
+            if game[2] != len(self._teams[0]):
+                team_games[game[4] * 6 + game[2]].append((game[0], game[1]))
+            if game[3] != len(self._teams[0]):
+                team_games[game[4] * 6 + game[3]].append((game[0], game[1]))
+
+
+        # print(team_games)
 
         # [[(4, 20), (10, 22)], ...]
         for one_teams_games in team_games:
+            if len(one_teams_games) < 10:
+                print("SHOULD NEVER GET HERE")
+                exit(5)
+                score -= 999#9999999999
             last_day = None
             for game in one_teams_games:
                 if last_day != None:
@@ -135,13 +165,15 @@ class SchedulingEnv(gym.Env):
                     score += diff ** 2
                 last_day = game[0]
 
+        #print(f"model recieved score of {score}")
         return score
 
     def _get_round_robin(self, _round):
+        # TODO: make sure this is working correctly...
         # https://en.wikipedia.org/wiki/Round-robin_tournament#Scheduling_algorithm
-        half = len(self._teams) // 2 # might break with odd numbers
+        half = len(self._teams[0]) // 2 # might break with odd numbers
         rotated = []
-        for i in range(1,len(self._teams)):
+        for i in range(1,len(self._teams[0])):
             rotated.append(i)
         for i in range(_round):
             rotated.append(rotated[0])
@@ -149,8 +181,9 @@ class SchedulingEnv(gym.Env):
         rotated.insert(0, 0)
 
         pairs = []
-        for i in range(0, half):
-            pairs.append((rotated[i], rotated[-(i + 1)]))
+        for league in range(4):
+            for i in range(0, half):
+                pairs.append((rotated[i] + league * 6, rotated[-(i + 1)] + league * 6))
 
         return pairs
 

@@ -126,10 +126,36 @@ def times():
 
 def teams():
     return [
-        "Trash Pandas",
-        "The Crew",
-        "Rebels",
-        "Marauders",
-        "Neighborhood",
-        "Big Willies",
+        [
+            "Reapers",
+            "Chiefs",
+            "Yetis",
+            "Pine Hill",
+            "Mountain Men",
+            "Sharknado",
+        ],
+        [
+            "Puck Commanders",
+            "Rusty Blades",
+            "Puck Bandits",
+            "Jr Yetis",
+            "P-Wings",
+            "Esqeletos",
+        ],
+        [
+            "Trash Pandas",
+            "The Crew",
+            "Rebels",
+            "Marauders",
+            "Neighborhood",
+            "Big Willies",
+        ],
+        [
+            "Iceholes",
+            "Pistol Shrimp",
+            "Sentinels",
+            "Trashers",
+            "Redshift",
+            "District 5",
+        ]
     ]
