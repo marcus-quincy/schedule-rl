@@ -129,8 +129,6 @@ def select_action(state):
             # XXX: maybe we can just filter this to be legal moves... i.e. get the largest legal move
             # https://stats.stackexchange.com/questions/378008/how-to-handle-a-changing-action-space-in-reinforcement-learning
             # https://stats.stackexchange.com/questions/328835/enforcing-game-rules-in-alpha-go-zero
-            #
-            # TODO: when back working on this, sort policy net in desceding order by index then iterate through and pick the first one that is valid
             policies = []
             zp = policy_net(state)[0]
             for i in range(len(zp)):
@@ -270,7 +268,9 @@ for i_episode in range(num_episodes):
 
 print('Complete')
 # TODO: is this the result from the best model? i dont' thingk so...
-#env.print_schedule()
+env.print_schedule()
+env.schedule_to_csv("schedule_summer_2024.csv")
+#print(csv)
 plot_durations(show_result=True)
 plt.ioff()
 plt.show()

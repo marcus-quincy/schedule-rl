@@ -11,6 +11,8 @@ import gymnasium as gym
 from gymnasium import spaces
 #import pygame
 from datetime import datetime
+from datetime import timedelta
+import pandas as pd
 
 
 class SchedulingEnv(gym.Env):
@@ -94,7 +96,7 @@ class SchedulingEnv(gym.Env):
                 # schedule a game at this time
                 self._schedule[self._index][2] = self.games_to_schedule[action][0] # set team0
                 self._schedule[self._index][3] = self.games_to_schedule[action][1] # set team1
-                self._schedule[self._index][4] = action // 6 # set league
+                self._schedule[self._index][4] = action // 3 # set league
                 self.games_to_schedule[action] = None
                 #print(f'scheduled a game at index {self._index}')
                 self._index += 1
@@ -124,8 +126,8 @@ class SchedulingEnv(gym.Env):
         if self._index >= len(self._times) or self._round >= 10:
             terminated = True
             reward = self._score_schedule()
-            self.print_schedule()
-            print(f'schedule got score of {reward}')
+            #self.print_schedule()
+            #print(f'schedule got score of {reward}')
 
         return self._get_obs(), reward, terminated, truncated, self._get_info()
 
@@ -198,3 +200,40 @@ class SchedulingEnv(gym.Env):
 
     def _parse_time(self, time):
         return datetime.strptime(time, '%m/%d/%y %H:%M')
+
+    def schedule_to_csv(self, path=None):
+        "return a csv string representing schedule"
+        # Start_Date,Start_Time,End_Date,End_Time,Location,Location_URL,Event_Type,Team1_ID,Team2_ID,Team1_Name,Team2_Name
+        # 05/20/2024,20:30,05/20/2024,21:45,George S. Eccles Ice Center --- Surface 1,https://www.google.com/maps?cid=12548177465055817450,Game,8387070,8387071,Chiefs,Mountain Men
+        header = ["Start_Date","Start_Time","End_Date","End_Time","Location","Location_URL","Event_Type","Team1_ID","Team2_ID","Team1_Name","Team2_Name"]
+        csv = []
+
+        get_day = lambda time: time.strftime("%m/%d/%Y")
+        get_time = lambda time: time.strftime("%H:%M")
+
+        for i in range(len(self._schedule)):
+            start_time = self._parse_time(self._times[i])
+            end_time = start_time + timedelta(hours=1, minutes=15)
+            line = [get_day(start_time), get_time(start_time), get_day(end_time), get_time(end_time)]
+            line.append("ice center")
+            line.append("http://example.com")
+            line.append("Game")
+            line.append("123")
+            line.append("456")
+            game = self._schedule[i]
+            team0_index = game[2]
+            team1_index = game[3]
+            line.append(self._teams[team0_index // 6][team0_index % 6])
+            line.append(self._teams[team1_index // 6][team1_index % 6])
+            csv.append(line)
+
+        df = pd.DataFrame(csv, columns=header)
+        return df.to_csv(path_or_buf=path, index=False)
+
+        """
+        (
+            #(d, h, team0, team1, league)
+            (1, 20, 0, 1, 0),
+            (2, 21, 2, 3, 0),
+        )
+        """
