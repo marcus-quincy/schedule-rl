@@ -1,5 +1,41 @@
-Requirements
-- python 3
-- pytorch
-- matplotlib
-- gymnasium
+ABOUT
+
+This is a reinforcement learning implementation to generate a schedule for
+a sports season. It was originally implemented as an alternative to the
+algorithm for powerplay (see
+https://github.com/jak103/powerplay/tree/61d4d7ed41539dee7c261418b28624a9ef0d63d5/backend/internal/server/apis/schedule
+for the golang implementation). The main goals of the reinforcement model are to
+schedule games such that teams have a sufficient number of days between games,
+and also to try to balance the time of day that teams play (i.e. try to prevent
+a team from having all their games at 22:30).
+
+
+STATUS
+
+The reinforcement model is working, however the schedules it is generating do
+not seem to be as good as the golang implementation, so development on this
+project was halted in favor of that implementation linked above.
+
+
+REQUIREMENTS
+
+- python 3.3+
+
+
+GETTING STARTED
+
+python -m venv .env
+source .env/bin/activate  # assuming using bash or zsh
+pip install -r requirements.txt
+python model.py
+
+
+LICENSE
+
+This is licensed under the permissive MIT license. See LICENSE for details.
+
+
+CONTACT
+
+To contact the author of this project please email me:
+gl@marcusquincy.org
