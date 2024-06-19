@@ -127,7 +127,7 @@ class SchedulingEnv(gym.Env):
             terminated = True
             reward = self._score_schedule()
             #self.print_schedule()
-            #print(f'schedule got score of {reward}')
+            print(f'schedule got score of {reward}')
 
         return self._get_obs(), reward, terminated, truncated, self._get_info()
 
@@ -170,13 +170,18 @@ class SchedulingEnv(gym.Env):
                 exit(5)
                 score -= 999#9999999999
             last_day = None
+            number_early = 0
             for game in one_teams_games:
                 if last_day != None:
                     diff = game[0] - last_day
                     score += diff ** 2
+                    early = game[1] <= 21 # TODO maybe account for minutes
+                    if early:
+                        number_early += 1
                 last_day = game[0]
+            if number_early < 5:
+                score -= (5 - number_early) ** 2 * 100
 
-        #print(f"model recieved score of {score}")
         return score
 
     def _get_round_robin(self, _round):
