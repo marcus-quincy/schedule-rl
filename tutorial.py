@@ -1,3 +1,6 @@
+# TODO: clean up code
+# TODO: use best model
+
 import gymnasium as gym
 import math
 import random
@@ -99,11 +102,8 @@ memory = ReplayMemory(10000)
 steps_done = 0
 
 
-def select_action(state):
-    # very first thing in state is the current iteration
+def select_action(state, use_policy=False):
     index = state[0]
-    #print(state) #
-    #exit(42)
     global steps_done
     sample = random.random()
     eps_threshold = EPS_END + (EPS_START - EPS_END) * \
@@ -121,7 +121,7 @@ def select_action(state):
     # print(games_to_schedule)
     # print(mask_array)
 
-    if sample > eps_threshold or True:
+    if sample > eps_threshold or use_policy:
         with torch.no_grad():
             # t.max(1) will return the largest column value of each row.
             # second column on max result is index of where max element was
@@ -266,10 +266,47 @@ for i_episode in range(num_episodes):
             plot_durations()
             break
 
-print('Complete')
-# TODO: is this the result from the best model? i dont' thingk so...
-env.print_schedule()
-env.schedule_to_csv("schedule_summer_2024.csv")
+print('Complete, generating final schedule')
+
+state, info = env.reset()
+state = torch.tensor(state, dtype=torch.float, device=device).unsqueeze(0)
+while True:
+    action = select_action(state, True)
+    observation, reward, terminated, truncated, _ = env.step(action.item())
+    done = terminated or truncated
+
+    if terminated:
+        next_state = None
+    else:
+        next_state = torch.tensor(observation, dtype=torch.float, device=device).unsqueeze(0)
+
+    # Store the transition in memory
+    memory.push(state, action, next_state, reward)
+
+    # Move to the next state
+    state = next_state
+
+    # Perform one step of the optimization (on the policy network)
+    #optimize_model()
+
+    # Soft update of the target network's weights
+    # θ′ ← τ θ + (1 −τ )θ′
+    # target_net_state_dict = target_net.state_dict()
+    # policy_net_state_dict = policy_net.state_dict()
+    # for key in policy_net_state_dict:
+    #     target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
+    # target_net.load_state_dict(target_net_state_dict)
+
+    if done:
+        print("done with final schedule")
+        env.print_schedule()
+        env.schedule_to_csv("schedule_summer_2024.csv")
+        # episode_durations.append(t + 1)
+        # plot_durations()
+        break
+
+
+
 #print(csv)
 plot_durations(show_result=True)
 plt.ioff()
